@@ -1,0 +1,20 @@
+{
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "openrouter/deepseek/deepseek-chat",
+        "fallbacks": [
+          "google/gemini-2.0-flash-exp"
+        ]
+      },
+      "models": {
+        "openrouter/deepseek/deepseek-chat": {
+          "alias": "DeepSeek"
+        },
+        "google/gemini-2.0-flash-exp": {
+          "alias": "Gemini 3.0"
+        }
+      }
+    }
+  }
+}
