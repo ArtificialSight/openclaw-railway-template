@@ -649,6 +649,12 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
         clawArgs(["config", "set", "gateway.controlUi.allowInsecureAuth", "true"]),
       );
 
+          // Trust Railway's proxy so gateway recognizes proxied connections as valid
+          await runCmd(
+                  OPENCLAW_NODE,
+                  clawArgs(["config", "set", "--json", "gateway.trustedProxies", JSON.stringify(["0.0.0.0/0"])]),
+                );
+
       const channelsHelp = await runCmd(
         OPENCLAW_NODE,
         clawArgs(["channels", "add", "--help"]),
