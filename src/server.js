@@ -649,12 +649,31 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
         clawArgs(["config", "set", "gateway.controlUi.allowInsecureAuth", "true"]),
       );
 
-          // Trust Railway's proxy so gateway recognizes proxied connections as valid
-          await runCmd(
-                  OPENCLAW_NODE,
-                  clawArgs(["config", "set", "--json", "gateway.trustedProxies", JSON.stringify(["0.0.0.0/0"])]),
-                );
+      // Configure trusted proxies for gateway:
+      // - By default, trust only loopback so direct clients cannot spoof proxy headers.
+      // - When running on Railway (detected via env) or when OPENCLAW_TRUST_PROXY_ALL=true,
+      //   trust all proxies so Railway's edge proxy is recognized as valid.
+      {
+        const isRailwayEnv =
+          !!process.env.RAILWAY_PROJECT_ID ||
+          !!process.env.RAILWAY_ENVIRONMENT ||
+          !!process.env.RAILWAY_STATIC_URL;
+        const trustAllProxies = process.env.OPENCLAW_TRUST_PROXY_ALL === "true";
+        const trustedProxies = (isRailwayEnv || trustAllProxies)
+          ? ["0.0.0.0/0"]
+          : ["127.0.0.1/32"];
 
+        await runCmd(
+          OPENCLAW_NODE,
+          clawArgs([
+            "config",
+            "set",
+            "--json",
+            "gateway.trustedProxies",
+            JSON.stringify(trustedProxies),
+          ]),
+        );
+      }
       const channelsHelp = await runCmd(
         OPENCLAW_NODE,
         clawArgs(["channels", "add", "--help"]),
