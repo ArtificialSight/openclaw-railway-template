@@ -825,6 +825,107 @@ app.post("/setup/api/reset", requireSetupAuth, async (_req, res) => {
   }
 });
 
+
+// File browser endpoints to access /data volume
+app.get("/setup/files", requireSetupAuth, async (req, res) => {
+  const requestedPath = req.query.path || "/data";
+  const safePath = path.resolve(requestedPath);
+  
+  // Security: only allow browsing /data
+  if (!safePath.startsWith("/data")) {
+    return res.status(403).json({ error: "Access denied" });
+  }
+  
+  try {
+    const stats = fs.statSync(safePath);
+    
+    if (stats.isFile()) {
+      // Serve file content
+      return res.sendFile(safePath);
+    }
+    
+    if (stats.isDirectory()) {
+      // List directory contents
+      const items = fs.readdirSync(safePath).map(name => {
+        const itemPath = path.join(safePath, name);
+        const itemStats = fs.statSync(itemPath);
+        return {
+          name,
+          path: itemPath,
+          type: itemStats.isDirectory() ? "directory" : "file",
+          size: itemStats.size,
+          modified: itemStats.mtime
+        };
+      });
+      
+      // Return HTML browser or JSON based on Accept header
+      if (req.headers.accept?.includes("text/html")) {
+        let html = `<!DOCTYPE html>
+<html>
+<head>
+  <title>File Browser - ${safePath}</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 1200px; margin: 40px auto; padding: 0 20px; }
+    h1 { border-bottom: 2px solid #333; padding-bottom: 10px; }
+    .path { color: #666; margin: 10px 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th { text-align: left; background: #f5f5f5; padding: 10px; border-bottom: 2px solid #ddd; }
+    td { padding: 10px; border-bottom: 1px solid #eee; }
+    tr:hover { background: #f9f9f9; }
+    a { color: #0066cc; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .directory { font-weight: bold; }
+    .directory:before { content: "📁 "; }
+    .file:before { content: "📄 "; }
+  </style>
+</head>
+<body>
+  <h1>File Browser</h1>
+  <div class="path">Current path: <code>${safePath}</code></div>
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>Size</th>
+        <th>Modified</th>
+      </tr>
+    </thead>
+    <tbody>`;
+        
+        // Add parent directory link if not at root
+        if (safePath !== "/data") {
+          const parentPath = path.dirname(safePath);
+          html += `<tr><td colspan="4"><a href="?path=${encodeURIComponent(parentPath)}">⬆️ Parent Directory</a></td></tr>`;
+        }
+        
+        items.forEach(item => {
+          const linkPath = item.type === "directory" ? `?path=${encodeURIComponent(item.path)}` : `?path=${encodeURIComponent(item.path)}`;
+          const sizeStr = item.type === "file" ? `${(item.size / 1024).toFixed(2)} KB` : "-";
+          html += `
+          <tr>
+            <td><a href="${linkPath}" class="${item.type}">${item.name}</a></td>
+            <td>${item.type}</td>
+            <td>${sizeStr}</td>
+            <td>${new Date(item.modified).toLocaleString()}</td>
+          </tr>`;
+        });
+        
+        html += `
+    </tbody>
+  </table>
+</body>
+</html>`;
+        return res.type("text/html").send(html);
+      } else {
+        return res.json({ path: safePath, items });
+      }
+    }
+  } catch (err) {
+    return res.status(500).json({ error: String(err) });
+  }
+});
+
 app.get("/setup/export", requireSetupAuth, async (_req, res) => {
   fs.mkdirSync(STATE_DIR, { recursive: true });
   fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
