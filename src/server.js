@@ -1047,6 +1047,7 @@ server.on("upgrade", async (req, socket, head) => {
     target: GATEWAY_TARGET,
     headers: {
       Authorization: `Bearer ${OPENCLAW_GATEWAY_TOKEN}`,
+            ...(req.headers.origin ? { origin: req.headers.origin } : {}),
     },
   });
 });
