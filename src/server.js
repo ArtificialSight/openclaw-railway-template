@@ -836,6 +836,24 @@ app.post("/setup/api/reset", requireSetupAuth, async (_req, res) => {
   }
 });
 
+// Fix allowed origins directly in openclaw.json (no redeploy needed)
+app.post("/setup/api/fix-origins", requireSetupAuth, async (_req, res) => {
+    try {
+          const cfgPath = configPath();
+          const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8"));
+          const origin = process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null;
+          if (!origin) return res.status(400).json({ ok: false, error: "RAILWAY_PUBLIC_DOMAIN not set" });
+          if (!cfg.gateway) cfg.gateway = {};
+          if (!cfg.gateway.controlUi) cfg.gateway.controlUi = {};
+          cfg.gateway.controlUi.allowedOrigins = [origin];
+          fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2), "utf8");
+          await restartGateway();
+          return res.json({ ok: true, origin, config: cfg.gateway.controlUi });
+        } catch (err) {
+          return res.status(500).json({ ok: false, error: String(err) });
+        }
+  });
+
 
 // File browser endpoints to access /data volume
 app.get("/setup/files", requireSetupAuth, async (req, res) => {
