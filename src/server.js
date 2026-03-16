@@ -187,6 +187,12 @@ async function startGateway() {
   }
 
   console.log(`[gateway] ========== TOKEN SYNC COMPLETE ==========`);
+    // Sync allowed origins for Control UI on every gateway start
+    const _publicOrigin = process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null;
+    if (_publicOrigin) {
+          await runCmd(OPENCLAW_NODE, clawArgs(["config", "set", "--json", "gateway.controlUi.allowedOrigins", JSON.stringify([_publicOrigin])]));
+          console.log(`[gateway] Set controlUi.allowedOrigins to ${_publicOrigin}`);
+        }
 
   const args = [
     "gateway",
@@ -648,6 +654,11 @@ app.post("/setup/api/run", requireSetupAuth, async (req, res) => {
         OPENCLAW_NODE,
         clawArgs(["config", "set", "gateway.controlUi.allowInsecureAuth", "true"]),
       );
+              // Set allowed origins for Control UI (fixes "origin not allowed" error)
+              const publicOrigin = process.env.RAILWAY_PUBLIC_DOMAIN ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : null;
+              if (publicOrigin) {
+                          await runCmd(OPENCLAW_NODE, clawArgs(["config", "set", "--json", "gateway.controlUi.allowedOrigins", JSON.stringify([publicOrigin])]));
+                        }
 
       const channelsHelp = await runCmd(
         OPENCLAW_NODE,
